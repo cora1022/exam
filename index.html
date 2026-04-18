@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Quiz</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
     <div class="app-container">
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem;">
+        <header class="app-header">
             <div>
-                <h1 style="font-size: 2rem; color: var(--primary);">Smart Quiz</h1>
+                <h1>Smart Quiz 1.0</h1>
             </div>
-            <a href="admin.html" class="btn btn-outline">⚙️ 관리 센터</a>
+            <a href="assets/pages/admin.html" class="btn btn-outline">⚙️ 관리 센터</a>
         </header>
 
         <div id="start-screen">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+            <div class="screen-header">
                 <h2>학습 과목 선택</h2>
                 <select id="play-mode" class="btn btn-outline">
                     <option value="sequential">🔄 순서대로</option>
@@ -44,6 +44,6 @@
         </div>
     </div>
     <script src="data.js"></script>
-    <script src="app.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

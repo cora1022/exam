@@ -16,12 +16,46 @@ const multipleAnswerSelect = document.getElementById('multiple-answer');
 let localData = (typeof quizData !== 'undefined') ? JSON.parse(JSON.stringify(quizData)) : [];
 let currentType = 'multiple';
 let editingId = null;
+let hasUnsavedChanges = false;
+
+// 페이지 이탈 시 경고
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // 브라우저 표준에 따라 빈 문자열 설정
+    }
+});
+
+// 메인 화면 링크 클릭 시 별도 확인 (선택 사항이나 UX 향상을 위해 추가)
+document.addEventListener('DOMContentLoaded', () => {
+    const mainNavLink = document.querySelector('a[href="../../index.html"]');
+    if (mainNavLink) {
+        mainNavLink.addEventListener('click', (e) => {
+            if (hasUnsavedChanges) {
+                if (!confirm('수정된 내용이 있습니다. 내보내기를 하지 않고 이동하시겠습니까?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+});
+
+/**
+ * 탭 전환 함수
+ */
+window.switchTab = function(el, tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    el.classList.add('active');
+};
 
 function renderDashboard() {
-    statTotal.innerText = localData.length;
+    if (statTotal) statTotal.innerText = localData.length;
 }
 
 function renderList() {
+    if (!questionsList) return;
     questionsList.innerHTML = '';
     countSpan.innerText = localData.length + '개';
 
@@ -54,15 +88,23 @@ function renderList() {
 
             div.innerHTML = `
                 <div style="flex: 1;">
-                    <span style="font-size: 0.7rem; color: var(--primary); font-weight: 700;">${item.type === 'multiple' ? '객관식' : '단답형'}</span>
-                    <p style="font-weight: 600; margin: 0.25rem 0;">${item.question}</p>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.7rem; color: var(--primary); font-weight: 700;">${item.type === 'multiple' ? '객관식' : '단답형'}</span>
+                        <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${item.isActive ? 'rgba(76, 175, 80, 0.1)' : 'rgba(158, 158, 158, 0.1)'}; color: ${item.isActive ? '#4CAF50' : '#9E9E9E'}; font-weight: 600;">
+                            ${item.isActive ? '활성' : '비활성'}
+                        </span>
+                    </div>
+                    <p style="font-weight: 600; margin: 0;">${item.question}</p>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 5px; margin-left: 1rem;">
                     <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, -1)">▲</button>
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, 1)">▼</button>
+                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, -1)" title="위로">▲</button>
+                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, 1)" title="아래로">▼</button>
                     </div>
                     <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: ${item.isActive ? 'var(--accent-error)' : 'var(--primary)'};" onclick="toggleQuestion(${originalIndex})" title="${item.isActive ? '비활성화' : '활성화'}">
+                            ${item.isActive ? '끄기' : '켜기'}
+                        </button>
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--primary);" onclick="editQuestion('${item.id}')">수정</button>
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--accent-error);" onclick="deleteQuestion(${originalIndex})">삭제</button>
                     </div>
@@ -75,12 +117,38 @@ function renderList() {
 }
 
 window.moveQuestion = function(index, direction) {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= localData.length) return;
-    const temp = localData[index];
-    localData[index] = localData[newIndex];
-    localData[newIndex] = temp;
-    renderList();
+    const targetCategory = localData[index].category;
+    let targetIndex = -1;
+
+    if (direction === -1) { // 위로 이동
+        for (let i = index - 1; i >= 0; i--) {
+            if (localData[i].category === targetCategory) {
+                targetIndex = i;
+                break;
+            }
+        }
+    } else { // 아래로 이동
+        for (let i = index + 1; i < localData.length; i++) {
+            if (localData[i].category === targetCategory) {
+                targetIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (targetIndex !== -1) {
+        const temp = localData[index];
+        localData[index] = localData[targetIndex];
+        localData[targetIndex] = temp;
+        hasUnsavedChanges = true;
+        renderList();
+    }
+};
+
+window.toggleQuestion = function(idx) {
+    localData[idx].isActive = !localData[idx].isActive;
+    hasUnsavedChanges = true;
+    renderList(); renderDashboard();
 };
 
 window.setQuestionType = function(el, type) {
@@ -162,38 +230,42 @@ window.cancelEdit = function() {
     initOptions();
 };
 
-addForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const questionData = {
-        category: categoryInput.value,
-        question: document.getElementById('question').value,
-        type: currentType,
-        isActive: true
-    };
+if (addForm) {
+    addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const questionData = {
+            category: categoryInput.value,
+            question: document.getElementById('question').value,
+            type: currentType,
+            isActive: true
+        };
 
-    if (currentType === 'multiple') {
-        questionData.options = Array.from(document.querySelectorAll('.opt-input')).map(i => i.value);
-        questionData.answer = parseInt(multipleAnswerSelect.value);
-    } else {
-        const answers = document.getElementById('short-answer').value.split(',').map(a => a.trim()).filter(a => a !== '');
-        questionData.answer = answers.length === 1 ? answers[0] : answers;
-    }
+        if (currentType === 'multiple') {
+            questionData.options = Array.from(document.querySelectorAll('.opt-input')).map(i => i.value);
+            questionData.answer = parseInt(multipleAnswerSelect.value);
+        } else {
+            const answers = document.getElementById('short-answer').value.split(',').map(a => a.trim()).filter(a => a !== '');
+            questionData.answer = answers.length === 1 ? answers[0] : answers;
+        }
 
-    if (editingId) {
-        const idx = localData.findIndex(q => q.id.toString() === editingId.toString());
-        localData[idx] = { ...localData[idx], ...questionData };
-        alert('문제가 수정되었습니다.');
-        cancelEdit();
-    } else {
-        localData.push({ id: Date.now(), ...questionData });
-        alert('문제가 추가되었습니다.');
-    }
-    renderDashboard(); renderList(); updateCategoryTools(); addForm.reset(); initOptions();
-});
+        if (editingId) {
+            const idx = localData.findIndex(q => q.id.toString() === editingId.toString());
+            localData[idx] = { ...localData[idx], ...questionData };
+            alert('문제가 수정되었습니다.');
+            cancelEdit();
+        } else {
+            localData.push({ id: Date.now(), ...questionData });
+            alert('문제가 추가되었습니다.');
+        }
+        hasUnsavedChanges = true;
+        renderDashboard(); renderList(); updateCategoryTools(); addForm.reset(); initOptions();
+    });
+}
 
 window.deleteQuestion = function(idx) {
     if (confirm('삭제하시겠습니까?')) {
         localData.splice(idx, 1);
+        hasUnsavedChanges = true;
         renderDashboard(); renderList(); updateCategoryTools();
     }
 };
@@ -201,6 +273,7 @@ window.deleteQuestion = function(idx) {
 window.deleteCategory = function(cat) {
     if (confirm(`'${cat}' 과목 전체를 삭제하시겠습니까?`)) {
         localData = localData.filter(q => q.category !== cat);
+        hasUnsavedChanges = true;
         renderDashboard(); renderList(); updateCategoryTools();
     }
 };
@@ -211,10 +284,12 @@ window.downloadDataFile = function() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'data.js'; a.click();
+    hasUnsavedChanges = false;
     alert('새 data.js 파일을 다운로드했습니다. 기존 파일과 교체해주세요.');
 };
 
 function updateCategoryTools() {
+    if (!categorySuggestions) return;
     const categories = [...new Set(localData.map(q => q.category))].sort();
     categorySuggestions.innerHTML = '';
     categoryBadgeList.innerHTML = '';
@@ -232,6 +307,7 @@ function updateCategoryTools() {
 }
 
 function initOptions() {
+    if (!optionsContainer) return;
     optionsContainer.innerHTML = '';
     for(let i=0; i<4; i++) addOptionField();
 }

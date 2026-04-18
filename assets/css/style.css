@@ -33,6 +33,26 @@ body {
     padding: 0 1rem;
 }
 
+/* Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3rem;
+}
+
+.app-header h1 {
+    font-size: 2rem;
+    color: var(--primary);
+}
+
+.screen-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+}
+
 /* Card Design */
 .card {
     background: var(--bg-card);
@@ -178,6 +198,13 @@ ul#options-list li.selected {
 .admin-sidebar {
     width: 240px;
     flex-shrink: 0;
+    background: #fff;
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
 }
 
 .admin-content {
@@ -198,11 +225,21 @@ ul#options-list li.selected {
     font-weight: 600;
     color: var(--secondary);
     transition: all 0.2s;
+    text-decoration: none;
+    display: block;
 }
 
 .nav-item:hover, .nav-item.active {
     background-color: #eff6ff;
     color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 .stats-grid {
@@ -217,6 +254,65 @@ ul#options-list li.selected {
     padding: 1.5rem;
     border-radius: 0.75rem;
     border: 1px solid var(--border-color);
+}
+
+.stat-widget .label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-widget .value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* Form Styles */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group input, .form-group select {
+    border: 1px solid var(--border-color);
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-family: inherit;
+}
+
+/* Question List Items */
+.q-card {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.q-card:last-child {
+    border: none;
+}
+
+/* Category Suggestions */
+.category-suggestion {
+    cursor: pointer;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--primary);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.category-suggestion:hover {
+    background: var(--primary);
+    color: white;
 }
 
 /* Short Answer Input */
