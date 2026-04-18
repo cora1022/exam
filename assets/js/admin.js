@@ -16,6 +16,7 @@ const multipleAnswerSelect = document.getElementById('multiple-answer');
 let localData = (typeof quizData !== 'undefined') ? JSON.parse(JSON.stringify(quizData)) : [];
 let currentType = 'multiple';
 let editingId = null;
+let activeManageId = null; // 현재 열려있는 관리 메뉴의 ID 저장
 let hasUnsavedChanges = false;
 let categoryOpenState = {}; // 각 과목의 열림/닫힘 상태 저장
 
@@ -178,12 +179,15 @@ function renderList() {
         const qContainer = document.createElement('div');
         qContainer.className = `category-questions-container ${isOpen ? '' : 'collapsed'}`;
 
-        groupedData[category].forEach((item) => {
+        groupedData[category].forEach((item, catIdx) => {
             const originalIndex = localData.findIndex(q => q.id === item.id);
             const itemStats = stats[item.id] || { solved: 0, wrong: 0 };
             const div = document.createElement('div');
             div.className = 'q-card';
             div.style.opacity = item.isActive ? '1' : '0.5';
+
+            // 현재 이 문제가 관리 메뉴가 열려있어야 하는지 확인
+            const isManageOpen = activeManageId === item.id;
 
             div.innerHTML = `
                 <div class="q-main-row">
@@ -201,13 +205,15 @@ function renderList() {
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="toggleManage(this)">⚙️ 관리</button>
-                </div>
-                <div class="manage-controls">
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, -1)">▲ 위로</button>
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, 1)">▼ 아래로</button>
+                    <div class="q-actions">
+                        <div class="reorder-btns">
+                            <button class="btn-reorder" onclick="moveQuestion(${originalIndex}, -1)" title="위로 이동" ${catIdx === 0 ? 'disabled' : ''}>▲</button>
+                            <button class="btn-reorder" onclick="moveQuestion(${originalIndex}, 1)" title="아래로 이동" ${catIdx === groupedData[category].length - 1 ? 'disabled' : ''}>▼</button>
+                        </div>
+                        <button class="btn btn-outline btn-manage" onclick="toggleManage(this, ${item.id})">${isManageOpen ? '✕ 닫기' : '⚙️ 관리'}</button>
                     </div>
+                </div>
+                <div class="manage-controls ${isManageOpen ? 'active' : ''}">
                     <div style="display: flex; gap: 5px;">
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--primary);" onclick="editQuestion('${item.id}')">수정</button>
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--accent-error);" onclick="deleteQuestion(${originalIndex})">삭제</button>
@@ -246,10 +252,21 @@ window.toggleCategory = function(category) {
     }
 };
 
-window.toggleManage = function(btn) {
+window.toggleManage = function(btn, id) {
     const controls = btn.closest('.q-card').querySelector('.manage-controls');
-    controls.classList.toggle('active');
-    btn.innerText = controls.classList.contains('active') ? '✕ 닫기' : '⚙️ 관리';
+    const isActive = controls.classList.contains('active');
+    
+    // 모든 다른 관리 메뉴 닫기
+    document.querySelectorAll('.manage-controls').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.btn-manage').forEach(b => b.innerText = '⚙️ 관리');
+
+    if (!isActive) {
+        controls.classList.add('active');
+        btn.innerText = '✕ 닫기';
+        activeManageId = id;
+    } else {
+        activeManageId = null;
+    }
 };
 
 window.moveQuestion = function(index, direction) {
@@ -302,6 +319,8 @@ window.toggleQuestion = function(idx) {
 };
 
 window.setQuestionType = function(el, type) {
+    if (currentType === type && el) return;
+    
     currentType = type;
     if (el) {
         document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
@@ -311,15 +330,28 @@ window.setQuestionType = function(el, type) {
     const multipleInputs = multipleArea.querySelectorAll('input, select');
     const shortAnswerInput = document.getElementById('short-answer');
 
+    // 애니메이션 처리를 위해 클래스 토글
     if (type === 'multiple') {
-        multipleArea.style.display = 'block';
-        shortArea.style.display = 'none';
+        shortArea.classList.add('hidden');
+        multipleArea.classList.remove('hidden');
+        multipleArea.classList.add('animating');
+        
+        setTimeout(() => {
+            multipleArea.classList.remove('animating');
+        }, 300);
+
         multipleInputs.forEach(i => i.disabled = false);
         shortAnswerInput.disabled = true;
         shortAnswerInput.required = false;
     } else {
-        multipleArea.style.display = 'none';
-        shortArea.style.display = 'block';
+        multipleArea.classList.add('hidden');
+        shortArea.classList.remove('hidden');
+        shortArea.classList.add('animating');
+        
+        setTimeout(() => {
+            shortArea.classList.remove('animating');
+        }, 300);
+
         multipleInputs.forEach(i => i.disabled = true);
         shortAnswerInput.disabled = false;
         shortAnswerInput.required = true;

@@ -9,7 +9,15 @@ const scoreText = document.getElementById('score-text');
 const reviewContainer = document.getElementById('review-container');
 const progressEl = document.getElementById('quiz-progress');
 const categoryBadge = document.getElementById('quiz-category-badge');
-const playModeSelect = document.getElementById('play-mode');
+const randomOverlay = document.getElementById('random-overlay');
+
+let currentPlayMode = 'sequential';
+
+window.setPlayMode = function(mode) {
+    currentPlayMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`mode-${mode}`).classList.add('active');
+};
 
 // localStorage를 사용하지 않고 오직 data.js(quizData)만 사용합니다.
 // 단, 문제별 통계(맞춘/틀린 횟수)는 localStorage에 저장하여 유지합니다.
@@ -63,15 +71,28 @@ function renderCategoryCard(title, count, value) {
 }
 
 function startQuiz(category) {
-    const mode = playModeSelect.value;
+    const mode = currentPlayMode;
     activeQuizData = (category === '전체') 
         ? localQuizData.filter(q => q.isActive)
         : localQuizData.filter(q => q.isActive && q.category === category);
 
-    if (mode === 'random') activeQuizData = shuffleArray([...activeQuizData]);
-    startScreen.style.display = 'none';
-    quiz.style.display = 'block';
-    loadQuiz();
+    if (mode === 'random') {
+        activeQuizData = shuffleArray([...activeQuizData]);
+        // 랜덤 선택 시 로딩 애니메이션 추가
+        randomOverlay.style.display = 'flex';
+        setTimeout(() => {
+            randomOverlay.style.display = 'none';
+            startScreen.style.display = 'none';
+            quiz.style.display = 'block';
+            quiz.classList.add('fade-in');
+            loadQuiz();
+        }, 1200);
+    } else {
+        startScreen.style.display = 'none';
+        quiz.style.display = 'block';
+        quiz.classList.add('fade-in');
+        loadQuiz();
+    }
 }
 
 function shuffleArray(array) {
@@ -88,15 +109,24 @@ function loadQuiz() {
     categoryBadge.innerText = item.category;
     progressEl.innerText = `${currentQuiz + 1} / ${activeQuizData.length}`;
     questionEl.innerText = item.question;
+    questionEl.classList.remove('fade-in');
+    void questionEl.offsetWidth; // 트리거 리플로우
+    questionEl.classList.add('fade-in');
+    
     optionsList.innerHTML = '';
 
     if (item.type === 'multiple') {
         item.options.forEach((option, index) => {
             const li = document.createElement('li');
             li.innerText = option;
+            li.style.animationDelay = `${index * 0.1}s`;
             li.onclick = () => {
-                document.querySelectorAll('#options-list li').forEach(el => el.classList.remove('selected'));
+                document.querySelectorAll('#options-list li').forEach(el => {
+                    el.classList.remove('selected');
+                    el.classList.remove('pop-animation');
+                });
                 li.classList.add('selected');
+                li.classList.add('pop-animation');
                 selectedAnswer = index;
             };
             optionsList.appendChild(li);
@@ -104,10 +134,16 @@ function loadQuiz() {
     } else {
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'short-answer-input';
+        input.className = 'short-answer-input fade-in';
         input.placeholder = '정답을 입력하세요';
         input.oninput = (e) => { selectedAnswer = e.target.value; };
-        input.onkeydown = (e) => { if (e.key === 'Enter') submitBtn.click(); };
+        input.onkeydown = (e) => { 
+            if (e.key === 'Enter') {
+                submitBtn.classList.add('pop-animation');
+                setTimeout(() => submitBtn.classList.remove('pop-animation'), 300);
+                submitBtn.click();
+            } 
+        };
         optionsList.appendChild(input);
         input.focus();
     }
