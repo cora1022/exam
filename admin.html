@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리 센터 - Smart Quiz</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-sidebar { background: #fff; border-radius: 1rem; border: 1px solid var(--border-color); padding: 1.5rem; height: fit-content; position: sticky; top: 2rem; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group input, .form-group select { border: 1px solid var(--border-color); width: 100%; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem; }
+        .q-card { border-bottom: 1px solid var(--border-color); padding: 1.5rem 0; display: flex; justify-content: space-between; align-items: flex-start; }
+        .q-card:last-child { border: none; }
+        .category-suggestion { cursor: pointer; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--primary); border: 1px solid var(--border-color); transition: all 0.2s; }
+        .category-suggestion:hover { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header style="margin-bottom: 2rem;">
+            <h1 style="font-size: 1.75rem; display: flex; align-items: center; gap: 0.75rem;">
+                <span style="background: var(--primary); color: white; padding: 0.4rem 0.8rem; border-radius: 0.75rem;">⚙️</span>
+                관리 센터
+            </h1>
+        </header>
+
+        <div class="admin-layout">
+            <aside class="admin-sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item active" onclick="switchTab(this, 'dashboard')">📊 대시보드</li>
+                    <li class="nav-item" onclick="switchTab(this, 'list')">📝 문제 목록</li>
+                    <li class="nav-item" onclick="switchTab(this, 'add')">➕ 문제 추가</li>
+                </ul>
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-color);">
+                <a href="index.html" style="text-decoration: none;" class="nav-item">🏠 메인 화면으로</a>
+            </aside>
+
+            <main class="admin-content">
+                <div id="dashboard" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-widget">
+                            <span class="label">전체 문제</span>
+                            <span class="value" id="stat-total">0</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>데이터 관리</h3>
+                        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">데이터를 파일로 저장하거나 외부 파일을 불러와 즉시 반영할 수 있습니다.</p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="downloadDataFile()" class="btn btn-primary">💾 data.js 파일로 내보내기</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="list" class="tab-content">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3>문제 목록</h3>
+                            <span id="list-count" style="font-size: 0.875rem; color: var(--text-muted);">0개</span>
+                        </div>
+                        <div id="questions-list"></div>
+                    </div>
+                </div>
+
+                <div id="add" class="tab-content">
+                    <div class="card">
+                        <h3 id="form-title">새 문제 등록</h3>
+                        <form id="add-form" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                            <div class="form-group">
+                                <label>문제 유형</label>
+                                <div class="type-selector" style="display: flex; gap: 10px; margin-top: 0.5rem;">
+                                    <button type="button" class="type-btn active" onclick="setQuestionType(this, 'multiple')">객관식</button>
+                                    <button type="button" class="type-btn" onclick="setQuestionType(this, 'short')">단답형</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>과목 분류</label>
+                                <div id="category-badge-list" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.5rem; margin-bottom: 0.25rem;"></div>
+                                <input type="text" id="category" required placeholder="과목명을 입력하세요" list="category-suggestions">
+                                <datalist id="category-suggestions"></datalist>
+                            </div>
+                            <div class="form-group">
+                                <label>질문 내용</label>
+                                <input type="text" id="question" required placeholder="질문을 입력하세요">
+                            </div>
+
+                            <div id="multiple-choice-area">
+                                <div class="form-group">
+                                    <label style="display: flex; justify-content: space-between;">
+                                        보기 구성
+                                        <button type="button" class="btn-icon" onclick="addOptionField()">+ 추가</button>
+                                    </label>
+                                    <div id="options-container" style="margin-top: 0.5rem;"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>정답 선택</label>
+                                    <select id="multiple-answer"></select>
+                                </div>
+                            </div>
+
+                            <div id="short-answer-area" style="display: none;">
+                                <div class="form-group">
+                                    <label>정답 입력 (여러 정답 가능 시 쉼표(,)로 구분)</label>
+                                    <input type="text" id="short-answer" placeholder="예: CPU, 중앙처리장치">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">데이터베이스에 저장 (임시)</button>
+                                <button type="button" id="cancel-btn" class="btn btn-outline" style="display: none;" onclick="cancelEdit()">취소</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="admin.js"></script>
+    <script>
+        function switchTab(el, tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            el.classList.add('active');
+        }
+    </script>
+</body>
+</html>
