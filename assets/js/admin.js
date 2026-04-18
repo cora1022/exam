@@ -17,6 +17,7 @@ let localData = (typeof quizData !== 'undefined') ? JSON.parse(JSON.stringify(qu
 let currentType = 'multiple';
 let editingId = null;
 let hasUnsavedChanges = false;
+let categoryOpenState = {}; // 각 과목의 열림/닫힘 상태 저장
 
 // 페이지 이탈 시 경고
 window.addEventListener('beforeunload', (e) => {
@@ -71,14 +72,27 @@ function renderList() {
     }, {});
 
     for (const category in groupedData) {
+        if (categoryOpenState[category] === undefined) categoryOpenState[category] = true;
+        const isOpen = categoryOpenState[category];
+
         const categorySection = document.createElement('div');
-        categorySection.style.marginBottom = '2.5rem';
-        categorySection.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">
+        categorySection.className = 'category-group';
+        categorySection.style.marginBottom = '1.5rem';
+
+        const header = document.createElement('div');
+        header.className = 'category-header';
+        header.onclick = () => toggleCategory(category);
+        header.innerHTML = `
+            <div class="category-title-area">
+                <span class="category-toggle-icon ${isOpen ? '' : 'collapsed'}">▼</span>
                 <h4 style="margin: 0; color: var(--primary);">${category}</h4>
-                <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; color: var(--accent-error);" onclick="deleteCategory('${category.replace(/'/g, "\\'")}')">과목 전체 삭제</button>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">(${groupedData[category].length})</span>
             </div>
+            <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; color: var(--accent-error);" onclick="event.stopPropagation(); deleteCategory('${category.replace(/'/g, "\\'")}')">과목 전체 삭제</button>
         `;
+
+        const qContainer = document.createElement('div');
+        qContainer.className = `category-questions-container ${isOpen ? '' : 'collapsed'}`;
 
         groupedData[category].forEach((item) => {
             const originalIndex = localData.findIndex(q => q.id === item.id);
@@ -87,34 +101,67 @@ function renderList() {
             div.style.opacity = item.isActive ? '1' : '0.5';
 
             div.innerHTML = `
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem;">
-                        <span style="font-size: 0.7rem; color: var(--primary); font-weight: 700;">${item.type === 'multiple' ? '객관식' : '단답형'}</span>
-                        <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${item.isActive ? 'rgba(76, 175, 80, 0.1)' : 'rgba(158, 158, 158, 0.1)'}; color: ${item.isActive ? '#4CAF50' : '#9E9E9E'}; font-weight: 600;">
-                            ${item.isActive ? '활성' : '비활성'}
-                        </span>
+                <div class="q-main-row">
+                    <div>
+                        <label class="switch" title="상태 변경">
+                            <input type="checkbox" ${item.isActive ? 'checked' : ''} onchange="toggleQuestion(${originalIndex})">
+                            <span class="slider"></span>
+                        </label>
+                        <div style="min-width: 0;">
+                            <span style="font-size: 0.7rem; color: var(--primary); font-weight: 700; display: block;">${item.type === 'multiple' ? '객관식' : '단답형'}</span>
+                            <p style="font-weight: 600; margin: 0; line-height: 1.4;">${item.question}</p>
+                        </div>
                     </div>
-                    <p style="font-weight: 600; margin: 0;">${item.question}</p>
+                    <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="toggleManage(this)">⚙️ 관리</button>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 5px; margin-left: 1rem;">
+                <div class="manage-controls">
                     <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, -1)" title="위로">▲</button>
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, 1)" title="아래로">▼</button>
+                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, -1)">▲ 위로</button>
+                        <button class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.7rem;" onclick="moveQuestion(${originalIndex}, 1)">▼ 아래로</button>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: ${item.isActive ? 'var(--accent-error)' : 'var(--primary)'};" onclick="toggleQuestion(${originalIndex})" title="${item.isActive ? '비활성화' : '활성화'}">
-                            ${item.isActive ? '끄기' : '켜기'}
-                        </button>
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--primary);" onclick="editQuestion('${item.id}')">수정</button>
                         <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--accent-error);" onclick="deleteQuestion(${originalIndex})">삭제</button>
                     </div>
                 </div>
             `;
-            categorySection.appendChild(div);
+            qContainer.appendChild(div);
         });
+
+        categorySection.appendChild(header);
+        categorySection.appendChild(qContainer);
         questionsList.appendChild(categorySection);
     }
 }
+
+window.toggleCategory = function(category) {
+    categoryOpenState[category] = !categoryOpenState[category];
+    const isOpen = categoryOpenState[category];
+    
+    // 해당 카테고리 그룹 찾기
+    const groups = document.querySelectorAll('.category-group');
+    for (const group of groups) {
+        if (group.querySelector('h4').innerText === category) {
+            const icon = group.querySelector('.category-toggle-icon');
+            const container = group.querySelector('.category-questions-container');
+            
+            if (isOpen) {
+                icon.classList.remove('collapsed');
+                container.classList.remove('collapsed');
+            } else {
+                icon.classList.add('collapsed');
+                container.classList.add('collapsed');
+            }
+            break;
+        }
+    }
+};
+
+window.toggleManage = function(btn) {
+    const controls = btn.closest('.q-card').querySelector('.manage-controls');
+    controls.classList.toggle('active');
+    btn.innerText = controls.classList.contains('active') ? '✕ 닫기' : '⚙️ 관리';
+};
 
 window.moveQuestion = function(index, direction) {
     const targetCategory = localData[index].category;
@@ -148,7 +195,21 @@ window.moveQuestion = function(index, direction) {
 window.toggleQuestion = function(idx) {
     localData[idx].isActive = !localData[idx].isActive;
     hasUnsavedChanges = true;
-    renderList(); renderDashboard();
+    
+    // DOM 요소 투명도 조절
+    const qCards = document.querySelectorAll('.q-card');
+    // localData의 인덱스와 매칭되는 q-card를 찾아야 함
+    // renderList에서 부여한 originalIndex 정보를 활용하여 매칭
+    for (const card of qCards) {
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        // onchange="toggleQuestion(${originalIndex})" 형태의 문자열에서 인덱스 추출
+        if (checkbox && checkbox.getAttribute('onchange').includes(`(${idx})`)) {
+            card.style.opacity = localData[idx].isActive ? '1' : '0.5';
+            break;
+        }
+    }
+    
+    renderDashboard();
 };
 
 window.setQuestionType = function(el, type) {
