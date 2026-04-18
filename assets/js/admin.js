@@ -19,6 +19,8 @@ let editingId = null;
 let hasUnsavedChanges = false;
 let categoryOpenState = {}; // 각 과목의 열림/닫힘 상태 저장
 
+const loadStats = () => JSON.parse(localStorage.getItem('quizStats') || '{}');
+
 // 페이지 이탈 시 경고
 window.addEventListener('beforeunload', (e) => {
     if (hasUnsavedChanges) {
@@ -53,6 +55,86 @@ window.switchTab = function(el, tabId) {
 
 function renderDashboard() {
     if (statTotal) statTotal.innerText = localData.length;
+    
+    const stats = loadStats();
+    const categoryChart = document.getElementById('category-chart');
+    const difficultChart = document.getElementById('difficult-questions-chart');
+    const avgAccuracyEl = document.getElementById('stat-avg-accuracy');
+
+    if (!categoryChart || !difficultChart) return;
+
+    // 1. 과목별 통계 계산
+    const categoryStats = {};
+    let totalSolved = 0;
+    let totalWrong = 0;
+
+    localData.forEach(item => {
+        if (!categoryStats[item.category]) {
+            categoryStats[item.category] = { solved: 0, wrong: 0 };
+        }
+        const s = stats[item.id] || { solved: 0, wrong: 0 };
+        categoryStats[item.category].solved += s.solved;
+        categoryStats[item.category].wrong += s.wrong;
+        totalSolved += s.solved;
+        totalWrong += s.wrong;
+    });
+
+    // 전체 평균 정답률
+    const totalAttempts = totalSolved + totalWrong;
+    const avgAccuracy = totalAttempts > 0 ? Math.round((totalSolved / totalAttempts) * 100) : 0;
+    if (avgAccuracyEl) avgAccuracyEl.innerText = `${avgAccuracy}%`;
+
+    // 2. 과목별 차트 렌더링
+    categoryChart.innerHTML = '';
+    for (const cat in categoryStats) {
+        const { solved, wrong } = categoryStats[cat];
+        const attempts = solved + wrong;
+        const accuracy = attempts > 0 ? Math.round((solved / attempts) * 100) : 0;
+        
+        const row = document.createElement('div');
+        row.className = 'chart-row';
+        row.innerHTML = `
+            <div class="chart-label">
+                <span>${cat}</span>
+                <span>${accuracy}% (${attempts}회)</span>
+            </div>
+            <div class="chart-bar-bg">
+                <div class="chart-bar-fill ${accuracy < 50 ? 'warning' : (accuracy > 80 ? 'success' : '')}" style="width: ${accuracy}%"></div>
+            </div>
+        `;
+        categoryChart.appendChild(row);
+    }
+
+    // 3. 가장 많이 틀린 문제 Top 5
+    const sortedDifficult = localData
+        .filter(item => (stats[item.id]?.wrong || 0) > 0)
+        .sort((a, b) => (stats[b.id]?.wrong || 0) - (stats[a.id]?.wrong || 0))
+        .slice(0, 5);
+
+    difficultChart.innerHTML = '';
+    if (sortedDifficult.length === 0) {
+        difficultChart.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem;">데이터가 부족합니다.</p>';
+    } else {
+        sortedDifficult.forEach(item => {
+            const wrongCount = stats[item.id].wrong;
+            const solvedCount = stats[item.id].solved;
+            const total = wrongCount + solvedCount;
+            const wrongRate = Math.round((wrongCount / total) * 100);
+
+            const row = document.createElement('div');
+            row.className = 'chart-row';
+            row.innerHTML = `
+                <div class="chart-label">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${item.question}</span>
+                    <span>${wrongCount}회 틀림</span>
+                </div>
+                <div class="chart-bar-bg">
+                    <div class="chart-bar-fill warning" style="width: ${wrongRate}%"></div>
+                </div>
+            `;
+            difficultChart.appendChild(row);
+        });
+    }
 }
 
 function renderList() {
@@ -65,6 +147,8 @@ function renderList() {
         return;
     }
 
+    renderDashboard(); // 목록 렌더링 시 대시보드도 함께 갱신
+    const stats = loadStats();
     const groupedData = localData.reduce((acc, curr) => {
         if (!acc[curr.category]) acc[curr.category] = [];
         acc[curr.category].push(curr);
@@ -96,6 +180,7 @@ function renderList() {
 
         groupedData[category].forEach((item) => {
             const originalIndex = localData.findIndex(q => q.id === item.id);
+            const itemStats = stats[item.id] || { solved: 0, wrong: 0 };
             const div = document.createElement('div');
             div.className = 'q-card';
             div.style.opacity = item.isActive ? '1' : '0.5';
@@ -110,6 +195,10 @@ function renderList() {
                         <div style="min-width: 0;">
                             <span style="font-size: 0.7rem; color: var(--primary); font-weight: 700; display: block;">${item.type === 'multiple' ? '객관식' : '단답형'}</span>
                             <p style="font-weight: 600; margin: 0; line-height: 1.4;">${item.question}</p>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                                <span style="color: var(--accent-success); font-weight: 700;">맞춘 횟수: ${itemStats.solved}</span> | 
+                                <span style="color: var(--accent-error); font-weight: 700;">틀린 횟수: ${itemStats.wrong}</span>
+                            </div>
                         </div>
                     </div>
                     <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="toggleManage(this)">⚙️ 관리</button>
@@ -336,6 +425,14 @@ window.deleteCategory = function(cat) {
         localData = localData.filter(q => q.category !== cat);
         hasUnsavedChanges = true;
         renderDashboard(); renderList(); updateCategoryTools();
+    }
+};
+
+window.resetStats = function() {
+    if (confirm('모든 문제의 맞춘/틀린 횟수 통계를 초기화하시겠습니까?')) {
+        localStorage.removeItem('quizStats');
+        alert('통계가 초기화되었습니다.');
+        renderList();
     }
 };
 

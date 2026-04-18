@@ -12,16 +12,21 @@ const categoryBadge = document.getElementById('quiz-category-badge');
 const playModeSelect = document.getElementById('play-mode');
 
 // localStorage를 사용하지 않고 오직 data.js(quizData)만 사용합니다.
+// 단, 문제별 통계(맞춘/틀린 횟수)는 localStorage에 저장하여 유지합니다.
 let localQuizData = (typeof quizData !== 'undefined') ? JSON.parse(JSON.stringify(quizData)) : [];
 
+const loadStats = () => JSON.parse(localStorage.getItem('quizStats') || '{}');
+const saveStats = (stats) => localStorage.setItem('quizStats', JSON.stringify(stats));
+
 // 데이터 정규화
+const stats = loadStats();
 localQuizData = localQuizData.map(item => ({
     ...item,
     type: item.type || 'multiple',
     category: item.category || '기본',
     isActive: item.isActive !== undefined ? item.isActive : true,
-    solvedCount: 0,
-    wrongCount: 0
+    solvedCount: stats[item.id]?.solved || 0,
+    wrongCount: stats[item.id]?.wrong || 0
 }));
 
 let activeQuizData = [];
@@ -118,8 +123,18 @@ submitBtn.addEventListener('click', () => {
         (Array.isArray(item.answer) ? item.answer.some(a => a.replace(/\s+/g, '').toLowerCase() === selectedAnswer.replace(/\s+/g, '').toLowerCase()) : 
         item.answer.replace(/\s+/g, '').toLowerCase() === selectedAnswer.replace(/\s+/g, '').toLowerCase());
 
+    // 통계 업데이트
+    const stats = loadStats();
+    if (!stats[item.id]) stats[item.id] = { solved: 0, wrong: 0 };
+    if (isCorrect) {
+        stats[item.id].solved++;
+        score++;
+    } else {
+        stats[item.id].wrong++;
+    }
+    saveStats(stats);
+
     userAnswers.push(selectedAnswer);
-    if (isCorrect) score++;
     currentQuiz++;
     if (currentQuiz < activeQuizData.length) loadQuiz();
     else showResult();
