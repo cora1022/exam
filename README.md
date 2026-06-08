@@ -39,11 +39,3 @@ python -m http.server 8000
 ```
 
 브라우저에서 `http://localhost:8000`을 열면 사용자 화면을, `http://localhost:8000/assets/pages/admin.html`을 열면 관리 화면을 확인할 수 있습니다.
-
-## 환경변수
-
-필요한 환경변수는 없습니다. 모든 데이터는 정적 JS 파일과 브라우저 localStorage를 사용합니다.
-
-## 보안 및 공개 메모
-
-secret/API key/password/token은 발견되지 않았습니다. 공개 저장소로 유지 가능하지만, 실제 시험 문제나 개인 학습 자료를 넣을 경우 저작권/개인정보 여부를 별도로 확인하세요.
